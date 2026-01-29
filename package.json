@@ -20,6 +20,6 @@
         "build": "vite build",
         "preview": "vite preview",
         "predeploy": "npm run build",
-        "deploy": "rm -rf deploy && mkdir -p deploy/react-counter && cp -r dist/* deploy/react-counter/ && gh-pages -d deploy"
+        "deploy": "gh-pages -d dist"
     }
 }
