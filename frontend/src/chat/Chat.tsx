@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { getXSkillsRuntime } from '@x-skills-for-ai/core';
 
 interface Message {
   role: 'user' | 'assistant';
@@ -31,52 +32,35 @@ const Chat: React.FC = () => {
     setMessages((prev) => [...prev, assistantMessage]);
 
     try {
+      const runtime = getXSkillsRuntime();
+      const skills = runtime.inspect();
       const response = await fetch('http://localhost:3001/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: userMessage.content }),
+        body: JSON.stringify({ message: userMessage.content, skills }),
       });
 
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        throw new Error('No response body reader');
-      }
-
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-
-        const lines = buffer.split('\n\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (line.startsWith('data: ')) {
-            const dataStr = line.slice(6);
-            if (dataStr === '[DONE]') {
-              break;
-            }
-            try {
-              const token = JSON.parse(dataStr);
-              setMessages((prev) =>
-                prev.map((m, i) =>
-                  i === prev.length - 1 ? { ...m, content: m.content + token } : m
-                )
-              );
-            } catch (e) {
-              // Ignore invalid JSON tokens
-            }
-          }
+      const data = await response.json();
+      let reply = data.reply || '';
+      try {
+        const parsed = JSON.parse(reply);
+        if (parsed && typeof parsed.skill === 'string') {
+          const params = parsed.params || {};
+          await getXSkillsRuntime().execute(parsed.skill, params);
+          reply = `✅ Skill "${parsed.skill}" executed${Object.keys(params).length > 0 ? ` with params: ${JSON.stringify(params)}` : ''}`;
         }
+      } catch (e) {
+        // Normal text response, keep original reply
       }
+      setMessages((prev) =>
+        prev.map((m, i) =>
+          i === prev.length - 1 ? { ...m, content: reply } : m
+        )
+      );
     } catch (error) {
       console.error(error);
       setMessages((prev) => [
@@ -128,20 +112,22 @@ const Chat: React.FC = () => {
             </div>
           </div>
         ))}
-        {isLoading && (
-          <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'flex-start' }}>
-            <div
-              style={{
-                padding: '12px 16px',
-                borderRadius: '18px',
-                backgroundColor: '#ffffff',
-                color: 'black',
-              }}
-            >
-              ...
+        {messages.length > 0 &&
+          messages[messages.length - 1].role === 'assistant' &&
+          messages[messages.length - 1].content === '' && (
+            <div style={{ marginBottom: '20px', display: 'flex', justifyContent: 'flex-start' }}>
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: '18px',
+                  backgroundColor: '#ffffff',
+                  color: 'black',
+                }}
+              >
+                ...
+              </div>
             </div>
-          </div>
-        )}
+          )}
         <div ref={messagesEndRef} />
       </div>
       <div style={{ padding: '20px', borderTop: '1px solid #ddd' }}>

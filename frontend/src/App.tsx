@@ -1,11 +1,44 @@
 import React from "react"
 import { Counter } from "./Counter"
+import Chat from "./chat/Chat"
+import { Todo } from "./Todo"
+import { useXSkill } from "@x-skills-for-ai/react"
+
+interface AppSkillParams {
+  tab: "counter" | "todo"
+}
 
 export function App() {
+  const [activeTab, setActiveTab] = React.useState<"counter" | "todo">("counter")
+
+  useXSkill({
+    id: "app",
+    handler: async ({ tab }: AppSkillParams) => {
+      // TODO: Implement app handler
+      setActiveTab(tab)
+    },
+    description: "Switch between counter and todo apps, tab: 'counter' | 'todo'",
+  })
+
   return (
-    <div style={{ textAlign: "center", marginTop: "50px" }}>
-      <h1>Counter Example</h1>
-      <Counter />
+    <div style={{ display: "flex", height: "100vh" }}>
+      <div style={{ flex: 1, overflow: "auto", padding: "24px", textAlign: "center" }}>
+        {activeTab === "counter" && (
+          <>
+            <h1>Counter Example</h1>
+            <Counter />
+          </>
+        )}
+        {activeTab === "todo" && (
+          <>
+            <h1>Todo Example</h1>
+            <Todo />
+          </>
+        )}
+      </div>
+      <div style={{ width: "380px", borderLeft: "1px solid #eee" }}>
+        <Chat />
+      </div>
     </div>
   )
 }
