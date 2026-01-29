@@ -8,8 +8,9 @@
     "dev": "nodemon server.js"
   },
   "dependencies": {
+    "cors": "^2.8.5",
     "express": "^4.19.2",
-    "cors": "^2.8.5"
+    "openai": "^6.17.0"
   },
   "devDependencies": {
     "nodemon": "^3.1.4"
