@@ -8,11 +8,12 @@ import type { Todo } from "./components/TodoItem"
 export function Todo() {
   const [todos, setTodos] = useState<Todo[]>([])
 
-  const addTodo = (text: string) => {
+  const addTodo = (text: string, tags: string[] = []) => {
     const newTodo: Todo = {
       id: `${Date.now()}`,
       text,
       completed: false,
+      tags,
     }
     setTodos(prev => [newTodo, ...prev])
   }
@@ -31,7 +32,7 @@ export function Todo() {
     id: "add_todo",
     description: "Add a new todo item",
     handler: async () => {
-      addTodo("New todo")
+      addTodo("New todo", [])
     },
   })
 
@@ -57,7 +58,7 @@ export function Todo() {
       <TodoInput onAdd={addTodo} />
 
       <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <button onClick={() => addTodo("New todo")}>Add sample</button>
+        <button onClick={() => addTodo("New todo", [])}>Add sample</button>
         <button onClick={() => lastTodoId && toggleTodo(lastTodoId)} disabled={!lastTodoId}>
           Toggle last
         </button>
