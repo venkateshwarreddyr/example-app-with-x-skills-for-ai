@@ -1,4 +1,5 @@
 import React from "react"
+import { useXSkill } from "@x-skills-for-ai/react"
 
 export type Todo = {
   id: string
@@ -14,6 +15,22 @@ type Props = {
 }
 
 export function TodoItem({ todo, onToggle, onRemove }: Props) {
+  useXSkill({
+    id: "remove_todo_" + todo.id,
+    description: `Remove todo item "${todo.text}"`,
+    handler: async () => {
+      onRemove(todo.id)
+    },
+  })
+
+  useXSkill({
+    id: "toggle_todo_" + todo.id,
+    description: `Toggle todo item "${todo.text}"`,
+    handler: async () => {
+      onToggle(todo.id)
+    },
+  })
+
   return (
     <li style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <input

@@ -1,14 +1,15 @@
 import React, { useState } from "react"
-import Select, { type MultiValue } from "react-select"
+import { useXSkill } from "@x-skills-for-ai/react"
+
 
 type Props = {
   onAdd: (text: string, tags: string[]) => void
+
 }
 
 export function TodoInput({ onAdd }: Props) {
   const [text, setText] = useState("")
-  type Option = { value: string; label: string }
-  const [selected, setSelected] = useState<Option[]>([])
+  const [select, setSelect] = useState("")
 
   const tagOptions = [
     { value: "work", label: "Work" },
@@ -21,14 +22,54 @@ export function TodoInput({ onAdd }: Props) {
     { value: "followup", label: "Follow-up" },
     { value: "meeting", label: "Meeting" },
     { value: "research", label: "Research" },
+
   ]
+
+  useXSkill({
+    id: "add_tag",
+    description: "Add or change tag. Available tags: " + tagOptions.map(option => option.value).join(", "),
+    handler: async (params?: { tag: string }) => {
+      const tag = params?.tag
+      if (tag) {
+        setSelect(tag)
+
+      }
+    },
+  })
+
+  useXSkill({
+    id: "remove_tag",
+    description: "Remove a todo item with tags: " + select,
+    handler: async (params?: { tag: string }) => {
+      const tagToRemove = params?.tag
+      if (tagToRemove && tagToRemove === select) {
+        setSelect("")
+
+      }
+    },
+  })
+
+  useXSkill({
+    id: "add_todo",
+    description: "Add a new todo item",
+    handler: async ({ text }: { text: string }) => {
+      onAdd(text, select ? [select] : [])
+       setSelect("")
+    },
+  })
 
   const submit = () => {
     const trimmed = text.trim()
     if (trimmed.length === 0) return
-    onAdd(trimmed, selected.map(s => s.value))
+    onAdd(trimmed, select ? [select] : [])
     setText("")
-    setSelected([])
+    setSelect("")
+
+  }
+
+  const handleTagChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setSelect(e.target.value)
+
   }
 
   return (
@@ -43,14 +84,29 @@ export function TodoInput({ onAdd }: Props) {
         />
         <button onClick={submit}>Add</button>
       </div>
-      <Select
-        isMulti
-        options={tagOptions}
-        value={selected}
-        onChange={(vals: MultiValue<Option>) => setSelected(vals as Option[])}
-        placeholder="Add tags... (e.g. Work, Urgent)"
-        aria-label="todo-tags"
-      />
+      <div>
+
+        <select
+          value={select}
+          onChange={handleTagChange}
+          aria-label="todo-tags"
+          style={{
+            width: "100%",
+            padding: "8px",
+            border: "1px solid #ccc",
+            borderRadius: "4px"
+
+          }}
+        >
+          <option value="">Select a tag</option>
+          {tagOptions.map(option => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+
+          ))}
+        </select>
+      </div>
     </div>
   )
 }

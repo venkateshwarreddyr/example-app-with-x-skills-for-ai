@@ -29,14 +29,6 @@ export function Todo() {
   const lastTodoId = useMemo(() => (todos.length ? todos[0].id : undefined), [todos])
 
   useXSkill({
-    id: "add_todo",
-    description: "Add a new todo item",
-    handler: async () => {
-      addTodo("New todo", [])
-    },
-  })
-
-  useXSkill({
     id: "toggle_last_todo",
     description: "Toggle the most recently added todo",
     handler: async () => {
