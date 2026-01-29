@@ -1,59 +1,80 @@
-# React Counter Example
+# Fullstack React + Express Counter Example
 
-This is a full React app demonstrating the `@x-skills-for-ai/react` wrapper.
+This project has been restructured into a frontend (React + Vite + TypeScript) and backend (Node + Express) setup.
 
-## Folder Structure
+The frontend is a counter app using [@x-skills-for-ai/react](https://www.npmjs.com/package/@x-skills-for-ai/react).
 
-```
-examples/react/react-counter/
-├─ package.json
-├─ tsconfig.json
-├─ vite.config.ts
-├─ public/
-│  └─ index.html
-└─ src/
-   ├─ index.tsx
-   ├─ App.tsx
-   └─ Counter.tsx
-```
+The backend provides a simple REST API for counter operations (in-memory state).
 
-## Run Locally
+## Project Structure
 
-1. Install dependencies at monorepo root:
+\`\`\`
+.
+├── frontend/
+│   ├── package.json
+│   ├── tsconfig.json
+│   ├── vite.config.mts
+│   ├── index.html
+│   └── src/
+│       ├── index.tsx
+│       ├── App.tsx
+│       ├── Counter.tsx
+│       └── Counter-Original.tsx
+├── backend/
+│   ├── package.json
+│   └── server.js
+├── README.md
+└── deploy/ (build artifacts)
+\`\`\`
 
-```bash
-cd xskills
+## Quick Start
+
+### Backend
+
+\`\`\`bash
+cd backend
 npm install
-```
-
-2. Build packages:
-
-```bash
-npm run build:all
-```
-
-3. Run the dev server:
-
-```bash
-npm run dev:react-example
-```
-
-Or:
-
-```bash
-cd examples/react/react-counter
 npm run dev
-```
+\`\`\`
 
-4. Open [http://localhost:5173/react-counter/](http://localhost:5173/react-counter/)
+Server runs on \`http://localhost:3001\`
 
-## Features
+Test API:
 
-- Increment/Decrement counter with React state.
-- `useXSkill` registers `increment` and `decrement` skills.
-- Skills executable via buttons or browser console:
+\`\`\`bash
+curl http://localhost:3001/api/count
+curl -X POST http://localhost:3001/api/count/increment
+\`\`\`
 
-```js
-window.__XSKILLS__.execute("increment")
-window.__XSKILLS__.execute("decrement")
-# example-app-with-x-skills-for-ai
+### Frontend
+
+In a new terminal:
+
+\`\`\`bash
+cd frontend
+npm install
+npm run dev
+\`\`\`
+
+App runs on \`http://localhost:5173\`
+
+API calls to \`/api/*\` are proxied to backend.
+
+## Backend API
+
+- \`GET /api/count\` - Get current count
+- \`POST /api/count/increment\` - Increment count
+- \`POST /api/count/decrement\` - Decrement count
+- \`POST /api/count/reset\` - Reset count to 0
+
+## Frontend Features
+
+- React counter with local state and x-skills integration (\`increment\`, \`decrement\`).
+- Vite proxy setup for seamless API development.
+
+To integrate API with frontend state, update \`frontend/src/Counter.tsx\` to use \`fetch\`.
+
+## Deployment
+
+- **Frontend**: \`cd frontend && npm run build && npm run deploy\` (gh-pages, note base path in vite.config).
+- **Backend**: Deploy to Heroku, Render, Vercel (serverless), etc.
