@@ -22,8 +22,8 @@ export function Counter() {
     return (
         <div>
             <h2 data-testid="count">Counter: {count}</h2>
-            <button onClick={() => setCount(c => c + 1)}>Increment</button>
-            <button onClick={() => setCount(c => c - 1)}>Decrement</button>
+            {/* <button onClick={() => setCount(c => c + 1)}>Increment</button>
+            <button onClick={() => setCount(c => c - 1)}>Decrement</button> */}
         </div>
     )
 }

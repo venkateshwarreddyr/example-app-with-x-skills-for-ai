@@ -113,7 +113,7 @@ const Realtime: React.FC = () => {
         addLog(`🛠️ Tool request: ${name} ${JSON.stringify(args)}`);
         let result = '';
         try {
-          const runtime = getXSkillsRuntime();
+          let runtime = getXSkillsRuntime();
           const currentSkills = runtime.inspect();
           addLog(`🔍 Skills before tool call (${currentSkills.length}): ${currentSkills.map((s: any) => s.id).join(', ')}`);
           if (name === 'execute_skill') {
@@ -141,6 +141,9 @@ const Realtime: React.FC = () => {
           } else {
             result = `Unknown tool: ${name}`;
           }
+          // Wait some time after executing tool before inspecting runtime
+          await new Promise((resolve) => setTimeout(resolve, 200));
+          runtime = getXSkillsRuntime();
           const skills = runtime.inspect();
           const turndownService = new TurndownService();
           const tempDiv = document.createElement('div');

@@ -60,7 +60,8 @@ io.on("connection", (socket) => {
       const event = {
         type: 'conversation.item.create',
         item: {
-          type: 'input_text',
+          type: 'message',
+          role: 'user',
           content: [{ type: 'input_text', text }]
         }
       };
@@ -183,9 +184,9 @@ For casual conversation or greetings, respond normally.`,
                 const toolResultEvent = {
                   type: 'conversation.item.create',
                   item: {
-                    type: 'input_tool_use',
+                    type: 'function_call_output',
                     call_id,
-                    content: [{ type: 'input_text', text: result }]
+                    output: result
                   }
                 };
                 xaiWs.send(JSON.stringify(toolResultEvent));
