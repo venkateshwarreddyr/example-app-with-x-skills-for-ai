@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import io from 'socket.io-client';
+import { getXSkillsRuntime } from '@x-skills-for-ai/core';
 
 const Realtime: React.FC = () => {
   type Status = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -8,50 +9,56 @@ const Realtime: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [hasMicPermission, setHasMicPermission] = useState(false);
+  const [monitorMic, setMonitorMic] = useState(false);
 
   const audioCtxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sourceRef = useRef<any>(null);
-  const processorRef = useRef<any>(null);
+  const monitorGainRef = useRef<GainNode | null>(null);
   const socketRef = useRef<any>(null);
+  const activeSourcesRef = useRef<AudioBufferSourceNode[]>([]);
+  const nextPlayTimeRef = useRef<number>(0);
+  const workletNodeRef = useRef<any>(null);
+  const isWorkletLoadedRef = useRef<boolean>(false);
 
   const addLog = useCallback((msg: string) => {
     setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
   }, []);
 
-  const floatTo16BitPCM = useCallback((input: Float32Array): ArrayBuffer => {
-    const buffer = new ArrayBuffer(input.length * 2);
-    const view = new DataView(buffer);
-    for (let i = 0; i < input.length; i++) {
-      const s = Math.max(-1, Math.min(1, input[i]));
-      view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
-    }
-    return buffer;
-  }, []);
+  
 
   const playPCM = useCallback((base64Audio: string, audioCtx: AudioContext) => {
-    try {
-      const binaryString = atob(base64Audio);
-      const len = binaryString.length / 2;
-      const pcm16 = new Int16Array(len);
-      for (let i = 0; i < len; i++) {
-        const offset = i * 2;
-        pcm16[i] = (binaryString.charCodeAt(offset) | (binaryString.charCodeAt(offset + 1) << 8));
-      }
-      const float32 = new Float32Array(pcm16.length);
-      for (let i = 0; i < pcm16.length; i++) {
-        float32[i] = pcm16[i] / 32768.0;
-      }
-      const buffer = audioCtx.createBuffer(1, float32.length, 24000);
-      buffer.copyToChannel(float32, 0);
-      const source = audioCtx.createBufferSource();
-      source.buffer = buffer;
-      source.connect(audioCtx.destination);
-      source.start();
-    } catch (e) {
-      console.error('Play PCM error:', e);
+  try {
+    const binaryString = atob(base64Audio);
+    const len = binaryString.length / 2;
+    const pcm16 = new Int16Array(len);
+    for (let i = 0; i < len; i++) {
+      const offset = i * 2;
+      pcm16[i] = (binaryString.charCodeAt(offset) | (binaryString.charCodeAt(offset + 1) << 8));
     }
-  }, []);
+    const float32 = new Float32Array(pcm16.length);
+    for (let i = 0; i < pcm16.length; i++) {
+      float32[i] = pcm16[i] / 32768.0;
+    }
+    const buffer = audioCtx.createBuffer(1, float32.length, 24000);
+    buffer.copyToChannel(float32, 0);
+    const source = audioCtx.createBufferSource();
+    source.buffer = buffer;
+    const startTime = Math.max(audioCtx.currentTime, nextPlayTimeRef.current);
+    source.start(startTime);
+    nextPlayTimeRef.current = startTime + buffer.duration;
+    source.connect(audioCtx.destination);
+    activeSourcesRef.current.push(source);
+    source.onended = () => {
+      const idx = activeSourcesRef.current.indexOf(source);
+      if (idx > -1) {
+        activeSourcesRef.current.splice(idx, 1);
+      }
+    };
+  } catch (e) {
+    console.error('Play PCM error:', e);
+  }
+}, []);
 
   const connect = useCallback(async () => {
     if (status === 'connecting' || status === 'connected') return;
@@ -86,6 +93,29 @@ const Realtime: React.FC = () => {
         }
       });
 
+      socket.on('tool_request', async (data: any) => {
+        const { call_id, name, args = {} } = data;
+        addLog(`🛠️ Tool request: ${name} ${JSON.stringify(args)}`);
+        let result = '';
+        try {
+          const runtime = getXSkillsRuntime();
+          if (name === 'get_screen_details') {
+            const skills = runtime.inspect();
+            result = JSON.stringify(skills, null, 2);
+          } else if (name === 'execute_skill') {
+            const { skill_id, params = {} } = args;
+            await runtime.execute(skill_id, params);
+            result = `✅ Executed skill "${skill_id}" with params: ${JSON.stringify(params)}`;
+          } else {
+            result = `Unknown tool: ${name}`;
+          }
+        } catch (error: any) {
+          result = `❌ Error: ${error.message}`;
+        }
+        socketRef.current.emit('tool_result', { call_id, result });
+        addLog(`✅ Sent tool_result for ${call_id}`);
+      });
+
       socket.on('disconnect', () => {
         addLog('🔌 Disconnected from backend');
         setStatus('disconnected');
@@ -94,6 +124,14 @@ const Realtime: React.FC = () => {
 
       socket.on('realtime_log', (msg: string) => {
         addLog(msg);
+      });
+      socket.on('interrupt_audio', () => {
+        addLog('🛑 User interrupted - clearing audio queue');
+        activeSourcesRef.current.forEach(source => source.stop());
+        activeSourcesRef.current = [];
+        if (audioCtxRef.current) {
+          nextPlayTimeRef.current = audioCtxRef.current.currentTime;
+        }
       });
     } catch (error) {
       const msg = (error as Error).message;
@@ -126,35 +164,48 @@ const Realtime: React.FC = () => {
       const source = audioCtx.createMediaStreamSource(stream);
       sourceRef.current = source;
 
-      const processor = audioCtx.createScriptProcessor(4096, 1, 1);
-      processorRef.current = processor;
-
-      source.connect(processor);
-      processor.connect(audioCtx.destination); // Optional: monitor input
-
-      processor.onaudioprocess = (e) => {
-        const inputData = e.inputBuffer.getChannelData(0);
-        const pcmBuffer = floatTo16BitPCM(inputData);
-        const uint8 = new Uint8Array(pcmBuffer);
+      const workletUrl = new URL('../audio-processor-worklet.js', import.meta.url);
+      if (!isWorkletLoadedRef.current) {
+        await audioCtx.audioWorklet.addModule(workletUrl);
+        isWorkletLoadedRef.current = true;
+      }
+      const processor = new AudioWorkletNode(audioCtx, 'realtime-mic-processor');
+      workletNodeRef.current = processor;
+      processor.port.onmessage = (event) => {
+        const audioData = event.data;
+        const uint8 = new Uint8Array(audioData);
         const base64 = btoa(String.fromCharCode(...Array.from(uint8)));
         socketRef.current?.emit('user_audio', base64);
       };
+
+      const monitorGain = audioCtx.createGain();
+      monitorGain.gain.value = 0.0;
+      monitorGainRef.current = monitorGain;
+
+      source.connect(processor);
+      processor.connect(monitorGain);
+      monitorGain.connect(audioCtx.destination);
 
       addLog('🎤 Started listening and sending audio');
       setIsListening(true);
     } catch (err) {
       addLog(`❌ Mic error: ${(err as Error).message}`);
     }
-  }, [addLog, floatTo16BitPCM]);
+  }, [addLog]);
 
   const stopListening = useCallback(() => {
     setIsListening(false);
 
 
 
-    if (processorRef.current) {
-      processorRef.current.disconnect();
-      processorRef.current = null;
+  if (workletNodeRef.current) {
+    workletNodeRef.current.disconnect();
+    workletNodeRef.current = null;
+  }
+
+    if (monitorGainRef.current) {
+      monitorGainRef.current.disconnect();
+      monitorGainRef.current = null;
     }
 
     if (sourceRef.current) {
@@ -166,8 +217,9 @@ const Realtime: React.FC = () => {
       streamRef.current.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     }
-
-
+    activeSourcesRef.current.forEach(source => source.stop());
+    activeSourcesRef.current = [];
+    nextPlayTimeRef.current = 0;
 
     addLog('🔇 Stopped listening');
   }, [addLog]);
@@ -185,6 +237,12 @@ const Realtime: React.FC = () => {
       socketRef.current?.disconnect();
     };
   }, [stopListening]);
+
+  useEffect(() => {
+    if (monitorGainRef.current) {
+      monitorGainRef.current.gain.value = monitorMic ? 0.3 : 0.0;
+    }
+  }, [monitorMic]);
 
   return (
     <div style={{ padding: '20px', fontFamily: 'system-ui, sans-serif', maxWidth: '600px' }}>
@@ -207,7 +265,7 @@ const Realtime: React.FC = () => {
            status === 'connected' ? 'Disconnect' : 'Connect to Realtime'}
         </button>
       </div>
-      <div style={{ marginBottom: '10px' }}>
+      <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <button
           onClick={isListening ? stopListening : startListening}
           disabled={status !== 'connected'}
@@ -224,6 +282,17 @@ const Realtime: React.FC = () => {
         >
           {isListening ? 'Stop Listening' : 'Start Listening'}
         </button>
+        {isListening && (
+          <label style={{ fontSize: '14px', cursor: 'pointer' }}>
+            <input
+              type="checkbox"
+              checked={monitorMic}
+              onChange={(e) => setMonitorMic(e.target.checked)}
+              style={{ marginRight: '5px' }}
+            />
+            Monitor mic (low vol)
+          </label>
+        )}
       </div>
       <p><strong>Status:</strong> {status}</p>
       <p><strong>Mic:</strong> {hasMicPermission ? (isListening ? 'Listening' : 'Ready') : 'Not granted'}</p>
