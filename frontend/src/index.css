@@ -41,7 +41,7 @@ h1 {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
-  margin-bottom: 3rem;
+  margin-bottom: 0.2rem;
   font-weight: 800;
   letter-spacing: -0.025em;
 }
@@ -126,7 +126,7 @@ h1 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 1rem;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -135,7 +135,7 @@ h1 {
   font-size: 1.5rem;
   color: #059669;
   text-align: center;
-  margin: 2.5rem 0;
+  margin: 1rem 0;
   font-weight: 700;
   background: rgba(16,185,129,0.18);
   padding: 1.25rem 2.5rem;
@@ -147,14 +147,14 @@ h1 {
 
 .todo-input-container {
   display: grid;
-  gap: 1.75rem;
+  gap: 1rem;
   background: rgba(255,255,255,0.98);
   backdrop-filter: blur(25px);
   padding: 1.5rem;
   border-radius: 28px;
   box-shadow: 0 25px 50px rgba(0,0,0,0.12);
   border: 1px solid rgba(255,255,255,0.35);
-  margin-bottom: 3rem;
+  margin-bottom: 1rem;
 }
 
 .todo-input-row {
@@ -394,11 +394,11 @@ h1 {
   font-size: 1.4rem;
   color: #94a3b8;
   text-align: center;
-  padding: 5rem 3rem;
+  padding: 2rem 1.5rem;
   background: rgba(255,255,255,0.65);
   backdrop-filter: blur(15px);
   border-radius: 28px;
-  margin: 3rem 0;
+  margin: 1rem 0;
   border: 2px dashed #cbd5e1;
   font-weight: 500;
 }
