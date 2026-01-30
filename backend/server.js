@@ -58,15 +58,51 @@ io.on("connection", (socket) => {
       xaiWs = new WebSocket(wsUrl, {
         headers: {
           'Authorization': `Bearer ${temp_token}`,
-           "Content-Type": "application/json",
         },
       });
       xaiWs.on('open', () => {
         socket.emit('realtime_status', 'connected');
         console.log(`✅ xAI WS connected for socket ${socket.id}`);
+        const sessionConfig = {
+          type: "session.update",
+          session: {
+            instructions: "You are a helpful assistant.",
+            voice: "Ara",
+            turn_detection: { type: "server_vad" },
+            audio: {
+              input: { format: { type: "audio/pcm", rate: 24000 } },
+              output: { format: { type: "audio/pcm", rate: 24000 } },
+            },
+          },
+        };
+        xaiWs.send(JSON.stringify(sessionConfig));
+        socket.emit('realtime_log', '📡 Sent session configuration to xAI');
       });
       xaiWs.on('message', (data) => {
-        socket.emit('from_xai', data.toString());
+        const msgStr = data.toString();
+        console.log(`[${new Date().toLocaleTimeString()}] xAI -> Socket ${socket.id}: ${msgStr.slice(0, 100)}...`);
+        try {
+          const parsed = JSON.parse(msgStr);
+          if (parsed.type === 'input_audio_buffer.speech_stopped') {
+            if (parsed.item_id) {
+              const commitEvent = {
+                type: 'conversation.item.commit',
+                item_id: parsed.item_id
+              };
+              xaiWs.send(JSON.stringify(commitEvent));
+              console.log(`Committed item: ${parsed.item_id}`);
+              socket.emit('realtime_log', `📝 Committed user speech (item: ${parsed.item_id})`);
+            }
+          } else if (parsed.type === 'response.output_audio.delta') {
+            if (parsed.delta) {
+              socket.emit('bot_audio', parsed.delta);
+            }
+            console.log(`Forwarded bot audio delta`);
+          }
+          socket.emit('realtime_log', `[xAI] ${parsed.type}`);
+        } catch (e) {
+          console.error('Failed to parse xAI message:', e);
+        }
       });
       xaiWs.on('close', () => {
         socket.emit('realtime_status', 'disconnected');
@@ -86,9 +122,14 @@ io.on("connection", (socket) => {
   socket.on('init_realtime', () => {
     connectToXai();
   });
-  socket.on('to_xai', (msg) => {
+  socket.on('user_audio', (base64Audio) => {
+    console.log(`[${new Date().toLocaleTimeString()}] Socket ${socket.id} -> xAI: audio chunk`);
     if (xaiWs && xaiWs.readyState === WebSocket.OPEN) {
-      xaiWs.send(msg);
+      const event = {
+        type: 'input_audio_buffer.append',
+        audio: base64Audio
+      };
+      xaiWs.send(JSON.stringify(event));
     } else {
       socket.emit('realtime_log', '❌ xAI not ready');
     }

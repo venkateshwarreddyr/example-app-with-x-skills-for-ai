@@ -8,6 +8,7 @@ const Realtime: React.FC = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [hasMicPermission, setHasMicPermission] = useState(false);
+
   const audioCtxRef = useRef<AudioContext | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const sourceRef = useRef<any>(null);
@@ -26,6 +27,30 @@ const Realtime: React.FC = () => {
       view.setInt16(i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
     }
     return buffer;
+  }, []);
+
+  const playPCM = useCallback((base64Audio: string, audioCtx: AudioContext) => {
+    try {
+      const binaryString = atob(base64Audio);
+      const len = binaryString.length / 2;
+      const pcm16 = new Int16Array(len);
+      for (let i = 0; i < len; i++) {
+        const offset = i * 2;
+        pcm16[i] = (binaryString.charCodeAt(offset) | (binaryString.charCodeAt(offset + 1) << 8));
+      }
+      const float32 = new Float32Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) {
+        float32[i] = pcm16[i] / 32768.0;
+      }
+      const buffer = audioCtx.createBuffer(1, float32.length, 24000);
+      buffer.copyToChannel(float32, 0);
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioCtx.destination);
+      source.start();
+    } catch (e) {
+      console.error('Play PCM error:', e);
+    }
   }, []);
 
   const connect = useCallback(async () => {
@@ -47,22 +72,6 @@ const Realtime: React.FC = () => {
         setStatus(statusVal);
         if (statusVal === 'connected') {
           addLog('✅ Backend connected to xAI');
-          const sessionConfig = {
-            type: 'session.update' as const,
-            session: {
-              instructions: 'You are a helpful assistant.',
-              voice: 'Ara',
-              turn_detection: { type: 'server_vad' },
-              audio: {
-                input: { format: { type: 'audio/pcm', rate: 24000 } },
-                output: { format: { type: 'audio/pcm', rate: 24000 } },
-              },
-            },
-          };
-          setTimeout(() => {
-            socket.emit('to_xai', JSON.stringify(sessionConfig));
-            addLog('📡 Sent session configuration');
-          }, 500);
         } else if (statusVal === 'error') {
           addLog('❌ xAI connection error');
         } else if (statusVal === 'disconnected') {
@@ -70,31 +79,10 @@ const Realtime: React.FC = () => {
         }
       });
 
-      socket.on('from_xai', (dataStr: string) => {
-        try {
-          const data = JSON.parse(dataStr);
-          if (data.type === 'output.audio.buffer.append') {
-            const audioContent = data.audio?.content;
-            if (audioContent && audioCtxRef.current) {
-              const byteString = atob(audioContent);
-              const ab = new ArrayBuffer(byteString.length);
-              const ia = new Uint8Array(ab);
-              for (let i = 0; i < byteString.length; i++) {
-                ia[i] = byteString.charCodeAt(i);
-              }
-              audioCtxRef.current.decodeAudioData(ab).then((audioBuffer) => {
-                const source = audioCtxRef.current!.createBufferSource();
-                source.buffer = audioBuffer;
-                source.connect(audioCtxRef.current!.destination);
-                source.start();
-              }).catch((e) => console.error('Decode error', e));
-              addLog('🔊 Playing audio chunk');
-            }
-          } else {
-            addLog(`📨 Server event: ${JSON.stringify(data).slice(0, 200)}...`);
-          }
-        } catch (e) {
-          addLog(`📨 Raw: ${dataStr.slice(0, 100)}...`);
+      socket.on('bot_audio', (audioBase64: string) => {
+        if (audioBase64 && audioCtxRef.current) {
+          playPCM(audioBase64, audioCtxRef.current);
+          addLog('🔊 Playing bot audio chunk');
         }
       });
 
@@ -149,12 +137,7 @@ const Realtime: React.FC = () => {
         const pcmBuffer = floatTo16BitPCM(inputData);
         const uint8 = new Uint8Array(pcmBuffer);
         const base64 = btoa(String.fromCharCode(...Array.from(uint8)));
-        socketRef.current?.emit('to_xai', JSON.stringify({
-          type: 'input.audio.buffer.append',
-          audio: {
-            content: base64
-          }
-        }));
+        socketRef.current?.emit('user_audio', base64);
       };
 
       addLog('🎤 Started listening and sending audio');
@@ -166,6 +149,8 @@ const Realtime: React.FC = () => {
 
   const stopListening = useCallback(() => {
     setIsListening(false);
+
+
 
     if (processorRef.current) {
       processorRef.current.disconnect();
@@ -182,11 +167,7 @@ const Realtime: React.FC = () => {
       streamRef.current = null;
     }
 
-    if (socketRef.current?.connected) {
-      socketRef.current.emit('to_xai', JSON.stringify({
-        type: 'input.audio.buffer.commit'
-      }));
-    }
+
 
     addLog('🔇 Stopped listening');
   }, [addLog]);
