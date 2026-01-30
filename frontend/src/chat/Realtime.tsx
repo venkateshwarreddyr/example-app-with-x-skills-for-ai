@@ -77,7 +77,10 @@ const Realtime: React.FC = () => {
           const runtime = getXSkillsRuntime();
           const skills = runtime.inspect();
           const turndownService = new TurndownService();
-          const pageMarkdown = turndownService.turndown(document.body.innerHTML);
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = document.body.innerHTML;
+          tempDiv.querySelectorAll('.chat').forEach(el => el.remove());
+          const pageMarkdown = turndownService.turndown(tempDiv.innerHTML);
           socket.emit('runtime_details', { skills, page_markdown: pageMarkdown });
           addLog('📋 Sent initial runtime details and page markdown to backend');
           addLog(`📋 Skills (${skills.length}): ${skills.map((s: any) => s.id).join(', ')}`);
@@ -115,21 +118,35 @@ const Realtime: React.FC = () => {
           addLog(`🔍 Skills before tool call (${currentSkills.length}): ${currentSkills.map((s: any) => s.id).join(', ')}`);
           if (name === 'execute_skill') {
             const { skill_id, params = {} } = args;
-            const skillFound = currentSkills.find((s: any) => s.id === skill_id);
-            if (!skillFound) {
-              addLog(`❌ Skill "${skill_id}" not found!`);
-              throw new Error(`Skill ${skill_id} not registered`);
+            let effective_skill_id = skill_id;
+            let effective_params = params;
+            if (!currentSkills.find((s: any) => s.id === skill_id)) {
+              if (skill_id === 'counter_app') {
+                effective_skill_id = 'switch_app';
+                effective_params = { tab: 'counter', ...params };
+              } else if (skill_id === 'todo_app') {
+                effective_skill_id = 'switch_app';
+                effective_params = { tab: 'todo', ...params };
+              } else {
+                addLog(`❌ Skill "${skill_id}" not found!`);
+                throw new Error(`Skill ${skill_id} not registered`);
+              }
+              addLog(`🔄 Mapped "${skill_id}" to "${effective_skill_id}"`);
             }
-            addLog(`⚡ Executing skill_id: "${skill_id}"`);
-            await runtime.execute(skill_id, params);
-            addLog(`✅ Skill "${skill_id}" executed successfully`);
-            result = `✅ Executed skill "${skill_id}" with params: ${JSON.stringify(params)}`;
+            addLog(`⚡ Executing skill_id: "${effective_skill_id}"`);
+            await runtime.execute(effective_skill_id, effective_params);
+            addLog(`✅ Skill "${effective_skill_id}" executed successfully`);
+            const executed_skill = skill_id === effective_skill_id ? skill_id : `${skill_id} -> ${effective_skill_id}`;
+            result = `✅ Executed ${executed_skill === skill_id ? 'skill' : 'mapped skill'} "${executed_skill}" with params: ${JSON.stringify(effective_params)}`;
           } else {
             result = `Unknown tool: ${name}`;
           }
           const skills = runtime.inspect();
           const turndownService = new TurndownService();
-          const pageMarkdown = turndownService.turndown(document.body.innerHTML);
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = document.body.innerHTML;
+          tempDiv.querySelectorAll('.chat').forEach(el => el.remove());
+          const pageMarkdown = turndownService.turndown(tempDiv.innerHTML);
           socketRef.current.emit('tool_result', { call_id, result, runtime_details: { skills, page_markdown: pageMarkdown } });
           addLog(`✅ Sent tool_result for ${call_id} with runtime details`);
         } catch (error: any) {

@@ -13,7 +13,7 @@ export function App() {
   const [activeTab, setActiveTab] = React.useState<"counter" | "todo">("todo")
 
   useXSkill({
-    id: "app",
+    id: "switch_app",
     handler: async ({ tab }: AppSkillParams) => {
       // TODO: Implement app handler
       setActiveTab(tab)
@@ -37,7 +37,7 @@ export function App() {
           </>
         )}
       </div>
-      <div style={{ width: "380px", borderLeft: "1px solid #eee" }}>
+      <div className="chat" style={{ width: "380px", borderLeft: "1px solid #eee" }}>
         <Realtime />
         {/* <Chat /> */}
       </div>

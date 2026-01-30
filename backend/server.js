@@ -52,9 +52,11 @@ io.on("connection", (socket) => {
 
   socket.on('runtime_details', (skills) => {
     console.log('📋 Runtime skills from frontend:', skills.skills ? skills.skills.map(s => s.id).join(', ') : 'no skills');
+    console.log(JSON.stringify(skills.skills))
     socket.emit('realtime_log', `📋 Skills: ${skills.skills ? skills.skills.length : 0}`);
     if (xaiWs && xaiWs.readyState === WebSocket.OPEN) {
       const text = `Current available skills from frontend runtime:\n${JSON.stringify(skills, null, 2)}`;
+      console.log('📋 Runtime skills from frontend:', text);
       const event = {
         type: 'conversation.item.create',
         item: {
@@ -149,7 +151,7 @@ For casual conversation or greetings, respond normally.`,
       });
       xaiWs.on('message', (data) => {
         const msgStr = data.toString();
-        console.log(`[${new Date().toLocaleTimeString()}] xAI -> Socket ${socket.id}: ${msgStr.slice(0, 100)}...`);
+        // console.log(`[${new Date().toLocaleTimeString()}] xAI -> Socket ${socket.id}: ${msgStr.slice(0, 100)}...`);
         try {
           const parsed = JSON.parse(msgStr);
           if (parsed.type === 'input_audio_buffer.speech_started') {
@@ -161,12 +163,12 @@ For casual conversation or greetings, respond normally.`,
               socket.emit('bot_audio', parsed.delta);
             }
             console.log(`Forwarded bot audio delta`);
-          } else if (parsed.type === 'response.function_call_args_delta') {
-            console.log('Tool args delta:', parsed.args_delta);
-            socket.emit('realtime_log', `🛠️ ${parsed.name || 'tool'} args_delta: ${parsed.args_delta}`);
-          } else if (parsed.type === 'response.function_call_args_done') {
+          } else if (parsed.type === 'response.function_call_arguments.delta') {
+            console.log('Tool arguments delta:', parsed.arguments_delta);
+            socket.emit('realtime_log', `🛠️ ${parsed.name || 'tool'} arguments_delta: ${parsed.arguments_delta}`);
+          } else if (parsed.type === 'response.function_call_arguments.done') {
             console.log('Tool call done:', parsed);
-            const { call_id, name, args } = parsed;
+            const { call_id, name, arguments: args } = parsed;
             let toolArgs;
             try {
               toolArgs = JSON.parse(args);
@@ -235,7 +237,7 @@ For casual conversation or greetings, respond normally.`,
     connectToXai();
   });
   socket.on('user_audio', (base64Audio) => {
-    console.log(`[${new Date().toLocaleTimeString()}] Socket ${socket.id} -> xAI: audio chunk`);
+    // console.log(`[${new Date().toLocaleTimeString()}] Socket ${socket.id} -> xAI: audio chunk`);
     if (xaiWs && xaiWs.readyState === WebSocket.OPEN) {
       const event = {
         type: 'input_audio_buffer.append',
