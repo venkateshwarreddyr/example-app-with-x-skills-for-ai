@@ -267,7 +267,7 @@ app.post('/api/chat', async (req, res) => {
 
   const skillsList = skills.map((s) => `- ${s.id}: ${s.description}`).join('\n') || 'No skills available';
 
-  const systemPrompt = `You are a helpful assistant in a skills-enabled chatbot.
+  const systemPrompt = `You are a helpful assistant in a skills-enabled chatbot. Keep normal responses to 5-10 words.
 For Hi and hello, reply Hi! How can I help you today?
 
 To use a skill, respond **ONLY** with valid JSON:

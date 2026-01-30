@@ -10,7 +10,7 @@ interface AppSkillParams {
 }
 
 export function App() {
-  const [activeTab, setActiveTab] = React.useState<"counter" | "todo">("todo")
+  const [activeTab, setActiveTab] = React.useState<"counter" | "todo">("counter")
 
   useXSkill({
     id: "switch_app",
@@ -27,6 +27,7 @@ export function App() {
         {activeTab === "counter" && (
           <>
             <h1>Counter Example</h1>
+            <h1></h1>
             <Counter />
           </>
         )}
