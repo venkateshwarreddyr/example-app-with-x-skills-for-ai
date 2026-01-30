@@ -4,9 +4,9 @@ import { getXSkillsRuntime } from '@x-skills-for-ai/core';
 import TurndownService from 'turndown';
 
 const Realtime: React.FC = () => {
-  type Status = 'disconnected' | 'connecting' | 'connected' | 'error';
+  type State = 'disconnected' | 'connecting' | 'connected' | 'error';
 
-  const [status, setStatus] = useState<Status>('disconnected');
+  const [state, setState] = useState<State>('disconnected');
   const [logs, setLogs] = useState<string[]>([]);
   const [isListening, setIsListening] = useState(false);
   const [hasMicPermission, setHasMicPermission] = useState(false);
@@ -62,10 +62,10 @@ const Realtime: React.FC = () => {
   }, []);
 
   const connect = useCallback(async () => {
-    if (status === 'connecting' || status === 'connected') return;
+    if (state === 'connecting' || state === 'connected') return;
 
     try {
-      setStatus('connecting');
+      setState('connecting');
       addLog('Connecting to backend Socket.IO proxy...');
       const socket = io('http://localhost:3001');
       socketRef.current = socket;
@@ -80,8 +80,8 @@ const Realtime: React.FC = () => {
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = document.body.innerHTML;
           tempDiv.querySelectorAll('.chat').forEach(el => el.remove());
-          const pageMarkdown = turndownService.turndown(tempDiv.innerHTML);
-          socket.emit('runtime_details', { skills, page_markdown: pageMarkdown });
+          const contextMarkdown = turndownService.turndown(tempDiv.innerHTML);
+          socket.emit('runtime_details', { skills, context_markdown: contextMarkdown });
           addLog('📋 Sent initial runtime details and page markdown to backend');
           addLog(`📋 Skills (${skills.length}): ${skills.map((s: any) => s.id).join(', ')}`);
         } catch (error: any) {
@@ -90,13 +90,13 @@ const Realtime: React.FC = () => {
       });
 
       socket.on('realtime_status', (s: string) => {
-        const statusVal = s as Status;
-        setStatus(statusVal);
-        if (statusVal === 'connected') {
+        const stateVal = s as State;
+        setState(stateVal);
+        if (stateVal === 'connected') {
           addLog('✅ Backend connected to xAI');
-        } else if (statusVal === 'error') {
+        } else if (stateVal === 'error') {
           addLog('❌ xAI connection error');
-        } else if (statusVal === 'disconnected') {
+        } else if (stateVal === 'disconnected') {
           addLog('🔌 xAI connection closed');
         }
       });
@@ -123,10 +123,10 @@ const Realtime: React.FC = () => {
             if (!currentSkills.find((s: any) => s.id === skill_id)) {
               if (skill_id === 'counter_app') {
                 effective_skill_id = 'switch_app';
-                effective_params = { tab: 'counter', ...params };
+                effective_params = { session: 'counter', ...params };
               } else if (skill_id === 'todo_app') {
                 effective_skill_id = 'switch_app';
-                effective_params = { tab: 'todo', ...params };
+                effective_params = { session: 'todo', ...params };
               } else {
                 addLog(`❌ Skill "${skill_id}" not found!`);
                 throw new Error(`Skill ${skill_id} not registered`);
@@ -149,8 +149,8 @@ const Realtime: React.FC = () => {
           const tempDiv = document.createElement('div');
           tempDiv.innerHTML = document.body.innerHTML;
           tempDiv.querySelectorAll('.chat').forEach(el => el.remove());
-          const pageMarkdown = turndownService.turndown(tempDiv.innerHTML);
-          socketRef.current.emit('tool_result', { call_id, result, runtime_details: { skills, page_markdown: pageMarkdown } });
+          const contextMarkdown = turndownService.turndown(tempDiv.innerHTML);
+          socketRef.current.emit('tool_result', { call_id, result, runtime_details: { skills, context_markdown: contextMarkdown } });
           addLog(`✅ Sent tool_result for ${call_id} with runtime details`);
         } catch (error: any) {
           result = `❌ Error: ${error.message}`;
@@ -161,7 +161,7 @@ const Realtime: React.FC = () => {
 
       socket.on('disconnect', () => {
         addLog('🔌 Disconnected from backend');
-        setStatus('disconnected');
+        setState('disconnected');
         socketRef.current = null;
       });
 
@@ -179,9 +179,9 @@ const Realtime: React.FC = () => {
     } catch (error) {
       const msg = (error as Error).message;
       addLog(`❌ Error: ${msg}`);
-      setStatus('error');
+      setState('error');
     }
-  }, [status, addLog]);
+  }, [state, addLog]);
 
   const startListening = useCallback(async () => {
     try {
@@ -207,9 +207,9 @@ const Realtime: React.FC = () => {
       const source = audioCtx.createMediaStreamSource(stream);
       sourceRef.current = source;
 
-      const workletUrl = new URL('../audio-processor-worklet.js', import.meta.url);
+      const workletEndpoint = new URL('../audio-processor-worklet.js', import.meta.url);
       if (!isWorkletLoadedRef.current) {
-        await audioCtx.audioWorklet.addModule(workletUrl);
+        await audioCtx.audioWorklet.addModule(workletEndpoint);
         isWorkletLoadedRef.current = true;
       }
       const processor = new AudioWorkletNode(audioCtx, 'realtime-mic-processor');
@@ -271,7 +271,7 @@ const Realtime: React.FC = () => {
     stopListening();
     socketRef.current?.disconnect();
     socketRef.current = null;
-    setStatus('disconnected');
+    setState('disconnected');
   }, [stopListening]);
 
   useEffect(() => {
@@ -292,26 +292,26 @@ const Realtime: React.FC = () => {
       <h2>Grok Realtime Voice Agent</h2>
       <div style={{ marginBottom: '10px' }}>
         <button
-          onClick={status === 'connected' || status === 'connecting' ? disconnect : connect}
+          onClick={state === 'connected' || state === 'connecting' ? disconnect : connect}
           disabled={false}
           style={{
             padding: '12px 24px',
             fontSize: '16px',
-            background: status === 'connected' ? '#10b981' : '#3b82f6',
+            background: state === 'connected' ? '#10b981' : '#3b82f6',
             color: 'white',
             border: 'none',
             borderRadius: '8px',
             cursor: 'pointer',
           }}
         >
-          {status === 'connecting' ? 'Connecting...' :
-            status === 'connected' ? 'Disconnect' : 'Connect to Realtime'}
+          {state === 'connecting' ? 'Connecting...' :
+            state === 'connected' ? 'Disconnect' : 'Connect to Realtime'}
         </button>
       </div>
       <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
         <button
           onClick={isListening ? stopListening : startListening}
-          disabled={status !== 'connected'}
+          disabled={state !== 'connected'}
           style={{
             padding: '12px 24px',
             fontSize: '16px',
@@ -319,8 +319,8 @@ const Realtime: React.FC = () => {
             color: 'white',
             border: 'none',
             borderRadius: '8px',
-            cursor: status !== 'connected' ? 'not-allowed' : 'pointer',
-            opacity: status !== 'connected' ? 0.5 : 1,
+            cursor: state !== 'connected' ? 'not-allowed' : 'pointer',
+            opacity: state !== 'connected' ? 0.5 : 1,
           }}
         >
           {isListening ? 'Stop Listening' : 'Start Listening'}
@@ -337,11 +337,11 @@ const Realtime: React.FC = () => {
           </label>
         )}
       </div>
-      <p><strong>Status:</strong> {status}</p>
+      <p><strong>Status:</strong> {state}</p>
       <p><strong>Mic:</strong> {hasMicPermission ? (isListening ? 'Listening' : 'Ready') : 'Not granted'}</p>
       {/* {!hasMicPermission && (
         <p style={{ color: 'orange', fontSize: '14px', marginTop: '5px' }}>
-          Click "Start Listening" to request permission. Allow microphone access in the browser prompt.
+          Trigger Event \"Start Listening\" to request permission. Allow microphone access in the runtime prompt.
           <br />
           If previously denied: Chrome &gt; Settings &gt; Privacy and security &gt; Site settings &gt; Microphone &gt; Add this site (localhost).
         </p>
@@ -357,7 +357,7 @@ const Realtime: React.FC = () => {
         lineHeight: '1.4',
       }}>
         {logs.length === 0 ? (
-          <p style={{ color: '#666', fontStyle: 'italic' }}>Click Connect to start realtime session...</p>
+          <p style={{ color: '#666', fontStyle: 'italic' }}>Trigger \"Connect\" to start realtime session...</p>
         ) : (
           logs.map((log, i) => <div key={i} style={{ marginBottom: '4px' }}>{log}</div>)
         )}
