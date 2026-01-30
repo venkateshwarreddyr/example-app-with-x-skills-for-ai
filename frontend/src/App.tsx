@@ -3,6 +3,7 @@ import { Counter } from "./Counter"
 import Chat from "./chat/Chat"
 import { Todo } from "./Todo"
 import { useXSkill } from "@x-skills-for-ai/react"
+import Realtime from "./chat/Realtime"
 
 interface AppSkillParams {
   tab: "counter" | "todo"
@@ -37,7 +38,8 @@ export function App() {
         )}
       </div>
       <div style={{ width: "380px", borderLeft: "1px solid #eee" }}>
-        <Chat />
+        <Realtime />
+        {/* <Chat /> */}
       </div>
     </div>
   )
