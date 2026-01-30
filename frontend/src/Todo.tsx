@@ -45,22 +45,16 @@ export function Todo() {
   })
 
   return (
-    <div>
-      <h2>Todo</h2>
+    <div className="todo-container">
+      <h2 className="todo-title">Todo</h2>
       <TodoInput onAdd={addTodo} />
 
-      {/* <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
-        <button onClick={() => addTodo("New todo", [])}>Add sample</button>
-        <button onClick={() => lastTodoId && toggleTodo(lastTodoId)} disabled={!lastTodoId}>
-          Toggle last
-        </button>
-        <button onClick={() => lastTodoId && removeTodo(lastTodoId)} disabled={!lastTodoId}>
-          Remove last
-        </button>
-      </div> */}
 
-      <p style={{ marginTop: 12 }}>Total: {todos.length}</p>
-      <TodoList todos={todos} onToggle={toggleTodo} onRemove={removeTodo} />
+
+      <p className="todo-total">Total: {todos.length}</p>
+      <div className="todo-scroll-container">
+               <TodoList todos={todos} onToggle={toggleTodo} onRemove={removeTodo} />
+           </div>
     </div>
   )
 }

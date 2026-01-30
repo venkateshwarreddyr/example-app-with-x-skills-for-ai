@@ -9,10 +9,10 @@ type Props = {
 
 export function TodoList({ todos, onToggle, onRemove }: Props) {
   if (todos.length === 0) {
-    return <p>No todos yet</p>
+    return <p className="no-todos">No todos yet</p>
   }
   return (
-    <ul style={{ display: "grid", gap: 8, paddingLeft: 0, listStyle: "none" }}>
+    <ul className="todo-list">
       {todos.map(t => (
         <TodoItem key={t.id} todo={t} onToggle={onToggle} onRemove={onRemove} />)
       )}

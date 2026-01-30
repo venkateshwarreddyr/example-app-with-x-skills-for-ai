@@ -20,10 +20,12 @@ export function Counter() {
     })
 
     return (
-        <div>
-            <h2 data-testid="count">Counter: {count}</h2>
-            {/* <button onClick={() => setCount(c => c + 1)}>Increment</button>
-            <button onClick={() => setCount(c => c - 1)}>Decrement</button> */}
+        <div className="counter-container">
+            <h2 className="counter-title" data-testid="count">Counter: {count}</h2>
+            {/* <div className="counter-buttons">
+                <button className="counter-btn" onClick={() => setCount(c => c + 1)}>Increment</button>
+                <button className="counter-btn" onClick={() => setCount(c => c - 1)}>Decrement</button>
+            </div> */}
         </div>
     )
 }

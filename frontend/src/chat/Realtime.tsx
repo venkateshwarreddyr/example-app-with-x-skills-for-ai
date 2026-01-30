@@ -339,14 +339,14 @@ const Realtime: React.FC = () => {
       </div>
       <p><strong>Status:</strong> {status}</p>
       <p><strong>Mic:</strong> {hasMicPermission ? (isListening ? 'Listening' : 'Ready') : 'Not granted'}</p>
-      {!hasMicPermission && (
+      {/* {!hasMicPermission && (
         <p style={{ color: 'orange', fontSize: '14px', marginTop: '5px' }}>
           Click "Start Listening" to request permission. Allow microphone access in the browser prompt.
           <br />
           If previously denied: Chrome &gt; Settings &gt; Privacy and security &gt; Site settings &gt; Microphone &gt; Add this site (localhost).
         </p>
-      )}
-      <div style={{
+      )} */}
+      {/* <div style={{
         height: '400px',
         overflow: 'auto',
         border: '1px solid #ddd',
@@ -361,7 +361,7 @@ const Realtime: React.FC = () => {
         ) : (
           logs.map((log, i) => <div key={i} style={{ marginBottom: '4px' }}>{log}</div>)
         )}
-      </div>
+      </div> */}
     </div>
   );
 };

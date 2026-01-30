@@ -73,40 +73,12 @@ export function TodoInput({ onAdd }: Props) {
   }
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <div style={{ display: "flex", gap: 8 }}>
-        <p>{text ? text : 'Add a todo'}</p>
-        {/* <input
-          value={text}
-          onChange={e => setText(e.target.value)}
-          placeholder="Add a todo"
-          onKeyDown={e => { if (e.key === "Enter") submit() }}
-          style={{ flex: 1 }}
-        /> */}
-        {/* <button onClick={submit}>Add</button> */}
+    <div className="todo-input-container">
+      <div className="todo-input-row">
+        <h5 className="todo-placeholder">{text ? text : "Add a todo"}</h5>
       </div>
-      <div>
-        <p>{select ? select : 'Select a tag'}</p>
-        {/* <select
-          value={select}
-          onChange={handleTagChange}
-          aria-label="todo-tags"
-          style={{
-            width: "100%",
-            padding: "8px",
-            border: "1px solid #ccc",
-            borderRadius: "4px"
-
-          }}
-        >
-          <option value="">Select a tag</option>
-          {tagOptions.map(option => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-
-          ))}
-        </select> */}
+      <div className="todo-tag-row">
+        <h5 className="todo-placeholder">{select ? select : "Select a tag"}</h5>
       </div>
     </div>
   )

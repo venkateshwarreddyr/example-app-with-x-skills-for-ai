@@ -32,29 +32,24 @@ export function TodoItem({ todo, onToggle, onRemove }: Props) {
   })
 
   return (
-    <li style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      {/* <input
+    <li className="todo-item">
+      <input
+        className="todo-checkbox"
         type="checkbox"
         checked={todo.completed}
         onChange={() => onToggle(todo.id)}
         aria-label={`toggle-${todo.id}`}
-      /> */}
-      <div style={{ display: "flex", flexDirection: "column", flex: 1 }}>
-        <span style={{ textDecoration: todo.completed ? "line-through" : "none" }}>
+      />
+      <div className="todo-content">
+        <span className={`todo-text ${todo.completed ? 'completed' : ''}`}>
           {todo.text}
         </span>
         {todo.tags?.length ? (
-          <div style={{ display: "flex", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+          <div className="todo-tags">
             {todo.tags.map(tag => (
               <span
                 key={tag}
-                style={{
-                  fontSize: 12,
-                  padding: "2px 6px",
-                  background: "#eef2ff",
-                  color: "#3730a3",
-                  borderRadius: 12,
-                }}
+                className={`todo-tag ${tag}`}
               >
                 {tag}
               </span>
@@ -62,9 +57,6 @@ export function TodoItem({ todo, onToggle, onRemove }: Props) {
           </div>
         ) : null}
       </div>
-      {/* <button onClick={() => onRemove(todo.id)} aria-label={`remove-${todo.id}`}>
-        Remove
-      </button> */}
     </li>
   )
 }
