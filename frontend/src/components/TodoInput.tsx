@@ -54,7 +54,7 @@ export function TodoInput({ onAdd }: Props) {
     description: "Add a new todo item",
     handler: async ({ text }: { text: string }) => {
       onAdd(text, select ? [select] : [])
-       setSelect("")
+      setSelect("")
     },
   })
 
@@ -75,18 +75,19 @@ export function TodoInput({ onAdd }: Props) {
   return (
     <div style={{ display: "grid", gap: 8 }}>
       <div style={{ display: "flex", gap: 8 }}>
-        <input
+        <p>{text ? text : 'Add a todo'}</p>
+        {/* <input
           value={text}
           onChange={e => setText(e.target.value)}
           placeholder="Add a todo"
           onKeyDown={e => { if (e.key === "Enter") submit() }}
           style={{ flex: 1 }}
-        />
-        <button onClick={submit}>Add</button>
+        /> */}
+        {/* <button onClick={submit}>Add</button> */}
       </div>
       <div>
-
-        <select
+        <p>{select ? select : 'Select a tag'}</p>
+        {/* <select
           value={select}
           onChange={handleTagChange}
           aria-label="todo-tags"
@@ -105,7 +106,7 @@ export function TodoInput({ onAdd }: Props) {
             </option>
 
           ))}
-        </select>
+        </select> */}
       </div>
     </div>
   )

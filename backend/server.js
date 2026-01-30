@@ -30,6 +30,18 @@ io.on("connection", (socket) => {
   let xaiWs = null;
   let cachedSkills = null; // Store skills here if they arrive before WS is ready
 
+  const getInstructions = () => {
+    if (!cachedSkills || !cachedSkills.skills?.length) {
+      return `You are a helpful voice assistant. Skills will be loaded soon. For casual conversation, respond normally.`;
+    }
+    const skillDesc = cachedSkills.skills.map(s => `${s.id}: ${s.description}`).join(', ');
+    return `You are a helpful voice assistant. 
+You have access to a tool called 'execute_skill'. 
+Available skills: ${skillDesc}
+MUST use 'execute_skill' tool immediately when user requests any skill action (e.g. increment, decrement, switch app). Use the exact skill_id. Do not chat about it, call the tool.
+For casual conversation or greetings, respond normally.`;
+  };
+
   const pendingToolCalls = new Map();
   const toolResolvers = new Map();
 
@@ -57,27 +69,11 @@ io.on("connection", (socket) => {
     console.log(JSON.stringify(skills.skills))
     socket.emit('realtime_log', `📋 Skills cached: ${skills.skills ? skills.skills.length : 0}`);
 
-    // If the connection is already open, send them now
-    if (xaiWs && xaiWs.readyState === WebSocket.OPEN) {
-      sendSkillsToXai(skills);
-    }
+
   });
 
   // Helper function to format and send the skills message
-  const sendSkillsToXai = (skills) => {
-    const text = `Current available skills from frontend runtime:\n${JSON.stringify(skills, null, 2)}`;
-    const event = {
-      type: 'conversation.item.create',
-      item: {
-        type: 'message',
-        role: 'user', // Sending as a user message so it's in context
-        content: [{ type: 'input_text', text }]
-      }
-    };
-    xaiWs.send(JSON.stringify(event));
-    console.log('📋 Sent runtime skills to xAI context');
-    socket.emit('realtime_log', '📋 Sent runtime skills to xAI context');
-  };
+
 
   const connectToXai = async () => {
     try {
@@ -118,13 +114,7 @@ io.on("connection", (socket) => {
         const sessionConfig = {
           type: "session.update",
           session: {
-            instructions: `You are a helpful voice assistant that can control the frontend app using the execute_skill tool.
-
-Runtime skills details are provided initially and after each skill execution.
-
-Use execute_skill with the skill_id from the provided details and optional params to perform actions.
-
-For casual conversation or greetings, respond normally.`,
+            instructions: getInstructions(),
             voice: "Ara",
             turn_detection: { type: "server_vad" },
             audio: {
@@ -151,16 +141,14 @@ For casual conversation or greetings, respond normally.`,
                   required: ["skill_id"]
                 }
               }
-            ]
+            ],
+            tool_choice: "auto"
           },
         };
         xaiWs.send(JSON.stringify(sessionConfig));
         socket.emit('realtime_log', '📡 Sent session configuration to xAI');
 
-        // IMMEDIATELY send cached skills if we have them
-        if (cachedSkills) {
-          sendSkillsToXai(cachedSkills);
-        }
+
       });
       xaiWs.on('message', (data) => {
         const msgStr = data.toString();

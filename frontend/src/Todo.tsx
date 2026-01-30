@@ -49,7 +49,7 @@ export function Todo() {
       <h2>Todo</h2>
       <TodoInput onAdd={addTodo} />
 
-      <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+      {/* <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
         <button onClick={() => addTodo("New todo", [])}>Add sample</button>
         <button onClick={() => lastTodoId && toggleTodo(lastTodoId)} disabled={!lastTodoId}>
           Toggle last
@@ -57,7 +57,7 @@ export function Todo() {
         <button onClick={() => lastTodoId && removeTodo(lastTodoId)} disabled={!lastTodoId}>
           Remove last
         </button>
-      </div>
+      </div> */}
 
       <p style={{ marginTop: 12 }}>Total: {todos.length}</p>
       <TodoList todos={todos} onToggle={toggleTodo} onRemove={removeTodo} />
