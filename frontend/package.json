@@ -9,6 +9,7 @@
         "react-dom": "^18.2.0",
         "react-select": "^5.10.2",
         "socket.io-client": "^4.8.3",
+        "turndown": "^7.2.2",
         "ws": "^8.19.0"
     },
     "devDependencies": {

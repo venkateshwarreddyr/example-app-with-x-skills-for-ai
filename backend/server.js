@@ -33,16 +33,43 @@ io.on("connection", (socket) => {
   const toolResolvers = new Map();
 
   socket.on('tool_result', (data) => {
-    const { call_id, result } = data;
-    const resolver = toolResolvers.get(call_id);
-    if (resolver) {
-      clearTimeout(resolver.timeout);
-      resolver.resolve(result);
-      toolResolvers.delete(call_id);
+  const { call_id, result, runtime_details } = data;
+  console.log(`📤 Tool result ${call_id}: ${result}`);
+  if (runtime_details && runtime_details.skills) {
+    console.log(`📋 Updated skills (${runtime_details.skills.length}): ${runtime_details.skills.map(s => s.id).join(', ')}`);
+  }
+  socket.emit('realtime_log', `📤 Tool ${call_id}: ${result.slice(0,100)}...`);
+  const resolver = toolResolvers.get(call_id);
+  if (resolver) {
+    clearTimeout(resolver.timeout);
+    const fullResult = result + (runtime_details ? `\n\nUpdated runtime details:\n${JSON.stringify(runtime_details, null, 2)}` : '');
+    resolver.resolve(fullResult);
+    toolResolvers.delete(call_id);
+  } else {
+    console.log(`No resolver for tool_result ${call_id}`);
+  }
+  });
+
+  socket.on('runtime_details', (skills) => {
+    console.log('📋 Runtime skills from frontend:', skills.skills ? skills.skills.map(s => s.id).join(', ') : 'no skills');
+    socket.emit('realtime_log', `📋 Skills: ${skills.skills ? skills.skills.length : 0}`);
+    if (xaiWs && xaiWs.readyState === WebSocket.OPEN) {
+      const text = `Current available skills from frontend runtime:\n${JSON.stringify(skills, null, 2)}`;
+      const event = {
+        type: 'conversation.item.create',
+        item: {
+          type: 'input_text',
+          content: [{ type: 'input_text', text }]
+        }
+      };
+      xaiWs.send(JSON.stringify(event));
+      console.log('📋 Sent initial runtime details to xAI');
+      socket.emit('realtime_log', '📋 Sent initial runtime details to xAI');
     } else {
-      console.log(`No resolver for tool_result ${call_id}`);
+      console.log('Cannot send runtime_details: xAI WS not open');
     }
   });
+
   const connectToXai = async () => {
     try {
       const apiKey = process.env.XAI_API_KEY;
@@ -81,11 +108,11 @@ io.on("connection", (socket) => {
         const sessionConfig = {
           type: "session.update",
           session: {
-  instructions: `You are a helpful voice assistant that can control the frontend app using tools.
+  instructions: `You are a helpful voice assistant that can control the frontend app using the execute_skill tool.
 
-Use get_screen_details to inspect available skills and screen info first.
+Runtime skills details are provided initially and after each skill execution.
 
-Then use execute_skill with skill_id and optional params to perform actions.
+Use execute_skill with the skill_id from the provided details and optional params to perform actions.
 
 For casual conversation or greetings, respond normally.`,
   voice: "Ara",
@@ -97,24 +124,14 @@ For casual conversation or greetings, respond normally.`,
   tools: [
     {
       type: "function",
-      name: "get_screen_details",
-      description: "Get current screen details: list of available skills, window dimensions, current URL.",
-      parameters: {
-        type: "object",
-        properties: {},
-        required: []
-      }
-    },
-    {
-      type: "function",
       name: "execute_skill",
-      description: "Execute a frontend skill by ID. Params optional.",
+      description: "Execute a frontend skill by ID from the runtime skills list. Params optional.",
       parameters: {
         type: "object",
         properties: {
           skill_id: {
             type: "string",
-            description: "The skill ID from get_screen_details"
+            description: "The skill ID from the provided runtime details"
           },
           params: {
             type: "object",

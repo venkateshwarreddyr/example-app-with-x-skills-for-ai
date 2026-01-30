@@ -1,6 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import io from 'socket.io-client';
 import { getXSkillsRuntime } from '@x-skills-for-ai/core';
+import TurndownService from 'turndown';
 
 const Realtime: React.FC = () => {
   type Status = 'disconnected' | 'connecting' | 'connected' | 'error';
@@ -25,40 +26,40 @@ const Realtime: React.FC = () => {
     setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${msg}`]);
   }, []);
 
-  
+
 
   const playPCM = useCallback((base64Audio: string, audioCtx: AudioContext) => {
-  try {
-    const binaryString = atob(base64Audio);
-    const len = binaryString.length / 2;
-    const pcm16 = new Int16Array(len);
-    for (let i = 0; i < len; i++) {
-      const offset = i * 2;
-      pcm16[i] = (binaryString.charCodeAt(offset) | (binaryString.charCodeAt(offset + 1) << 8));
-    }
-    const float32 = new Float32Array(pcm16.length);
-    for (let i = 0; i < pcm16.length; i++) {
-      float32[i] = pcm16[i] / 32768.0;
-    }
-    const buffer = audioCtx.createBuffer(1, float32.length, 24000);
-    buffer.copyToChannel(float32, 0);
-    const source = audioCtx.createBufferSource();
-    source.buffer = buffer;
-    const startTime = Math.max(audioCtx.currentTime, nextPlayTimeRef.current);
-    source.start(startTime);
-    nextPlayTimeRef.current = startTime + buffer.duration;
-    source.connect(audioCtx.destination);
-    activeSourcesRef.current.push(source);
-    source.onended = () => {
-      const idx = activeSourcesRef.current.indexOf(source);
-      if (idx > -1) {
-        activeSourcesRef.current.splice(idx, 1);
+    try {
+      const binaryString = atob(base64Audio);
+      const len = binaryString.length / 2;
+      const pcm16 = new Int16Array(len);
+      for (let i = 0; i < len; i++) {
+        const offset = i * 2;
+        pcm16[i] = (binaryString.charCodeAt(offset) | (binaryString.charCodeAt(offset + 1) << 8));
       }
-    };
-  } catch (e) {
-    console.error('Play PCM error:', e);
-  }
-}, []);
+      const float32 = new Float32Array(pcm16.length);
+      for (let i = 0; i < pcm16.length; i++) {
+        float32[i] = pcm16[i] / 32768.0;
+      }
+      const buffer = audioCtx.createBuffer(1, float32.length, 24000);
+      buffer.copyToChannel(float32, 0);
+      const source = audioCtx.createBufferSource();
+      source.buffer = buffer;
+      const startTime = Math.max(audioCtx.currentTime, nextPlayTimeRef.current);
+      source.start(startTime);
+      nextPlayTimeRef.current = startTime + buffer.duration;
+      source.connect(audioCtx.destination);
+      activeSourcesRef.current.push(source);
+      source.onended = () => {
+        const idx = activeSourcesRef.current.indexOf(source);
+        if (idx > -1) {
+          activeSourcesRef.current.splice(idx, 1);
+        }
+      };
+    } catch (e) {
+      console.error('Play PCM error:', e);
+    }
+  }, []);
 
   const connect = useCallback(async () => {
     if (status === 'connecting' || status === 'connected') return;
@@ -72,6 +73,17 @@ const Realtime: React.FC = () => {
       socket.on('connect', () => {
         addLog('✅ Connected to backend Socket.IO');
         socket.emit('init_realtime');
+        try {
+          const runtime = getXSkillsRuntime();
+          const skills = runtime.inspect();
+          const turndownService = new TurndownService();
+          const pageMarkdown = turndownService.turndown(document.body.innerHTML);
+          socket.emit('runtime_details', { skills, page_markdown: pageMarkdown });
+          addLog('📋 Sent initial runtime details and page markdown to backend');
+          addLog(`📋 Skills (${skills.length}): ${skills.map((s: any) => s.id).join(', ')}`);
+        } catch (error: any) {
+          addLog(`❌ Failed to send initial runtime details: ${error.message}`);
+        }
       });
 
       socket.on('realtime_status', (s: string) => {
@@ -99,21 +111,32 @@ const Realtime: React.FC = () => {
         let result = '';
         try {
           const runtime = getXSkillsRuntime();
-          if (name === 'get_screen_details') {
-            const skills = runtime.inspect();
-            result = JSON.stringify(skills, null, 2);
-          } else if (name === 'execute_skill') {
+          const currentSkills = runtime.inspect();
+          addLog(`🔍 Skills before tool call (${currentSkills.length}): ${currentSkills.map((s: any) => s.id).join(', ')}`);
+          if (name === 'execute_skill') {
             const { skill_id, params = {} } = args;
+            const skillFound = currentSkills.find((s: any) => s.id === skill_id);
+            if (!skillFound) {
+              addLog(`❌ Skill "${skill_id}" not found!`);
+              throw new Error(`Skill ${skill_id} not registered`);
+            }
+            addLog(`⚡ Executing skill_id: "${skill_id}"`);
             await runtime.execute(skill_id, params);
+            addLog(`✅ Skill "${skill_id}" executed successfully`);
             result = `✅ Executed skill "${skill_id}" with params: ${JSON.stringify(params)}`;
           } else {
             result = `Unknown tool: ${name}`;
           }
+          const skills = runtime.inspect();
+          const turndownService = new TurndownService();
+          const pageMarkdown = turndownService.turndown(document.body.innerHTML);
+          socketRef.current.emit('tool_result', { call_id, result, runtime_details: { skills, page_markdown: pageMarkdown } });
+          addLog(`✅ Sent tool_result for ${call_id} with runtime details`);
         } catch (error: any) {
           result = `❌ Error: ${error.message}`;
+          socketRef.current.emit('tool_result', { call_id, result });
+          addLog(`✅ Sent tool_result for ${call_id}`);
         }
-        socketRef.current.emit('tool_result', { call_id, result });
-        addLog(`✅ Sent tool_result for ${call_id}`);
       });
 
       socket.on('disconnect', () => {
@@ -198,10 +221,10 @@ const Realtime: React.FC = () => {
 
 
 
-  if (workletNodeRef.current) {
-    workletNodeRef.current.disconnect();
-    workletNodeRef.current = null;
-  }
+    if (workletNodeRef.current) {
+      workletNodeRef.current.disconnect();
+      workletNodeRef.current = null;
+    }
 
     if (monitorGainRef.current) {
       monitorGainRef.current.disconnect();
@@ -262,7 +285,7 @@ const Realtime: React.FC = () => {
           }}
         >
           {status === 'connecting' ? 'Connecting...' :
-           status === 'connected' ? 'Disconnect' : 'Connect to Realtime'}
+            status === 'connected' ? 'Disconnect' : 'Connect to Realtime'}
         </button>
       </div>
       <div style={{ marginBottom: '10px', display: 'flex', alignItems: 'center', gap: '10px' }}>
